@@ -16,7 +16,9 @@ spec:
     - https://github.com/patel0ankur/fleetinfra
     - https://github.com/patel0ankur/fleetinfra.git
   destinations:
-    - server: https://kubernetes.default.svc
+    # The managed Argo CD capability requires EKS cluster ARNs (not
+    # https://kubernetes.default.svc) as the destination server.
+    - server: arn:aws:eks:us-east-1:590443650088:cluster/fleet-control
       namespace: '*'
   clusterResourceWhitelist:
     - group: '*'
