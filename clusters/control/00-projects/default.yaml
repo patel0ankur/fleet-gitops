@@ -13,8 +13,8 @@ metadata:
 spec:
   description: Platform-level resources managed by the Fleet platform team.
   sourceRepos:
-    - https://github.com/patel0ankur/fleetinfra
-    - https://github.com/patel0ankur/fleetinfra.git
+    - https://github.com/patel0ankur/fleet-gitops
+    - https://github.com/patel0ankur/fleet-gitops.git
   destinations:
     # The managed Argo CD capability requires EKS cluster ARNs (not
     # https://kubernetes.default.svc) as the destination server.

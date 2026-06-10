@@ -1,4 +1,4 @@
-# fleetinfra — Fleet Management GitOps repo
+# fleet-gitops — Fleet Management GitOps repo
 
 This is the **platform GitOps repo** for the [Fleet Management](https://github.com/patel0ankur/fleet_infra) IDP.
 
