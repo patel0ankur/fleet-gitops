@@ -1,0 +1,26 @@
+# Argo CD AppProject — Phase 1 default.
+#
+# Allows the fleet-bootstrap App-of-Apps to deploy anything under this repo
+# into the in-cluster destination. Phase 2+ will add tighter, per-tenant
+# AppProjects with sourceRepo + namespace + RBAC restrictions.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: fleet-platform
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: Platform-level resources managed by the Fleet platform team.
+  sourceRepos:
+    - https://github.com/patel0ankur/fleetinfra
+    - https://github.com/patel0ankur/fleetinfra.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: '*'
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
