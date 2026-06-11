@@ -1,0 +1,37 @@
+# SecretProviderClass for Backstage. ASCP authenticates to AWS via Pod
+# Identity (usePodIdentity: "true") using the SA `backstage` -> IAM role
+# binding created in 02-platform-stack.ts.
+#
+# `secretObjects` synthesizes a Kubernetes Secret named `backstage-secrets`
+# from the mounted files; the Backstage Helm values reference that Secret
+# via `extraEnvVarsSecrets` to inject GITHUB_TOKEN and
+# AUTH_OIDC_CLIENT_SECRET into the backend container's environment.
+#
+# The synthesized Secret only materializes once a pod that mounts this SPC
+# is admitted to the namespace. The Backstage pod does mount it as a CSI
+# volume (see Helm values).
+apiVersion: secrets-store.csi.x-k8s.io/v1
+kind: SecretProviderClass
+metadata:
+  name: backstage-secrets
+  namespace: backstage
+spec:
+  provider: aws
+  parameters:
+    usePodIdentity: "true"
+    region: us-east-1
+    objects: |
+      - objectName: "arn:aws:secretsmanager:us-east-1:590443650088:secret:fleet/backstage/github-token-7mAe63"
+        objectAlias: "github-token"
+        objectType: "secretsmanager"
+      - objectName: "arn:aws:secretsmanager:us-east-1:590443650088:secret:fleet/backstage/oidc-client-secret-O5qpSL"
+        objectAlias: "oidc-client-secret"
+        objectType: "secretsmanager"
+  secretObjects:
+    - secretName: backstage-secrets
+      type: Opaque
+      data:
+        - objectName: "github-token"
+          key: GITHUB_TOKEN
+        - objectName: "oidc-client-secret"
+          key: AUTH_OIDC_CLIENT_SECRET
