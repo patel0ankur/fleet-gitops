@@ -1,0 +1,98 @@
+# Backstage Helm values - stock upstream chart.
+#
+# Deferred to Phase 3.5 (custom image): kubernetes-ingestor, TechDocs builder,
+# OpenChoreo-style catalog provider plugin reading Project/Deployment CRs.
+# Anything that needs `app-config.yaml` plugin wiring lives there instead of
+# here.
+backstage:
+  image:
+    registry: ghcr.io
+    repository: backstage/backstage
+    tag: "1.30.4"
+  serviceAccount:
+    create: false
+    name: backstage
+  extraVolumes:
+    - name: backstage-secrets
+      csi:
+        driver: secrets-store.csi.k8s.io
+        readOnly: true
+        volumeAttributes:
+          secretProviderClass: backstage-secrets
+  extraVolumeMounts:
+    - name: backstage-secrets
+      mountPath: /mnt/secrets
+      readOnly: true
+  extraEnvVarsSecrets:
+    - backstage-secrets
+  appConfig:
+    app:
+      title: Fleet Developer Portal
+      baseUrl: https://patelax.people.aws.dev
+    organization:
+      name: acme
+    backend:
+      baseUrl: https://patelax.people.aws.dev
+      listen:
+        port: 7007
+      cors:
+        origin: https://patelax.people.aws.dev
+        methods: [GET, HEAD, PATCH, POST, PUT, DELETE]
+        credentials: true
+      database:
+        client: pg
+        connection:
+          host: backstage-postgresql
+          port: 5432
+          user: bn_backstage
+          database: bn_backstage
+          password: ${POSTGRES_PASSWORD}
+    integrations:
+      github:
+        - host: github.com
+          token: ${GITHUB_TOKEN}
+    auth:
+      environment: production
+      providers:
+        oidc:
+          production:
+            metadataUrl: https://identitycenter.amazonaws.com/ssoins-7223a8cdc0a50ab1/.well-known/openid-configuration
+            clientId: fleet-fleet-control-backstage
+            clientSecret: ${AUTH_OIDC_CLIENT_SECRET}
+            prompt: auto
+            signIn:
+              resolvers:
+                - resolver: emailMatchingUserEntityProfileEmail
+    catalog:
+      rules:
+        - allow: [Group, User, System, Component, Template]
+      locations:
+        - type: url
+          target: https://github.com/patel0ankur/fleet-gitops/blob/main/projects/*/catalog-info.yaml
+          rules:
+            - allow: [Group, User, System, Component]
+        - type: url
+          target: https://github.com/patel0ankur/fleet-gitops/blob/main/clusters/control/40-backstage/scaffolder/*/template.yaml
+          rules:
+            - allow: [Template]
+    scaffolder:
+      defaultAuthor:
+        name: Fleet Backstage
+        email: backstage@patelax.people.aws.dev
+      defaultCommitMessage: 'feat: scaffolded by Backstage'
+ingress:
+  enabled: true
+  className: alb
+  host: patelax.people.aws.dev
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+postgresql:
+  enabled: true
+  auth:
+    username: bn_backstage
+    database: bn_backstage
+  primary:
+    persistence:
+      size: 8Gi
