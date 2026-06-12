@@ -1,0 +1,15 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: catalog-demo
+  description: catalog-demo - StatelessServiceWithBucket (scaffolded by Fleet Backstage)
+  annotations:
+    # Point the catalog entity at the kro CR it provisions, so the entity
+    # page links back to the source manifest in fleet-gitops.
+    backstage.io/source-location: url:https://github.com/{{ ORG_GH }}/fleet-gitops/blob/main/projects/demo-team/deployments/catalog-demo.yaml
+    fleet.platform.{{ ORG }}/kro-instance: catalog-demo
+spec:
+  type: service
+  lifecycle: production
+  owner: demo-team
+  system: demo-team
