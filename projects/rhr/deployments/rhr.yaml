@@ -1,0 +1,13 @@
+apiVersion: kro.run/v1alpha1
+kind: StatelessServiceWithBucket
+metadata:
+  name: rhr
+  namespace: rhr
+spec:
+  name: rhr
+  image: public.ecr.aws/nginx/nginx:1.27
+  replicas: 2
+  containerPort: 8080
+  bucketSuffix: app
+  costCenter: "eng-001"
+  namespace: rhr
