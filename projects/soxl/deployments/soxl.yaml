@@ -1,0 +1,13 @@
+apiVersion: kro.run/v1alpha1
+kind: StatelessServiceWithBucket
+metadata:
+  name: soxl
+  namespace: soxl
+spec:
+  name: soxl
+  image: public.ecr.aws/nginx/nginx:1.27
+  replicas: 2
+  containerPort: 8080
+  bucketSuffix: app
+  costCenter: "soxl-1010"
+  namespace: soxl
