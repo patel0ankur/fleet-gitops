@@ -146,11 +146,11 @@ backstage:
     # Phase 5: DevOps Agent plugin. The backend reads investigations from this
     # agentSpace at request time (AWS creds via the backstage Pod Identity
     # role). Empty agentSpaceId => the Incidents tab shows "not configured".
-    #  / us-east-1 are substituted
+    # c222c1e4-2769-406a-bce3-96bee5be0b2a / us-east-1 are substituted
     # by render-gitops from spec.observability.devopsAgent.
     aws:
       devopsAgent:
-        agentSpaceId: ""
+        agentSpaceId: "c222c1e4-2769-406a-bce3-96bee5be0b2a"
         region: "us-east-1"
 ingress:
   enabled: true
