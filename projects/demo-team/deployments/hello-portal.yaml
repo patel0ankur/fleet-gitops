@@ -1,0 +1,13 @@
+apiVersion: kro.run/v1alpha1
+kind: StatelessServiceWithBucket
+metadata:
+  name: hello-portal
+  namespace: demo-team
+spec:
+  name: hello-portal
+  image: public.ecr.aws/nginx/nginx:1.27
+  replicas: 1
+  containerPort: 8080
+  bucketSuffix: demo
+  costCenter: "0000-demo"
+  namespace: demo-team
