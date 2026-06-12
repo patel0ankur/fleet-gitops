@@ -4,6 +4,7 @@ metadata:
   name: soxl
   description: soxl - StatelessServiceWithBucket (scaffolded by Fleet Backstage)
   annotations:
+    backstage.io/kubernetes-id: soxl
     backstage.io/source-location: url:https://github.com/patel0ankur/fleet-gitops/blob/main/projects/soxl/deployments/soxl.yaml
   labels:
     fleet.platform/kro-instance: soxl
