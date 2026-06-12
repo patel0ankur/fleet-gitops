@@ -1,0 +1,13 @@
+apiVersion: kro.run/v1alpha1
+kind: StatelessServiceWithBucket
+metadata:
+  name: cat-demo3
+  namespace: demo-team
+spec:
+  name: cat-demo3
+  image: public.ecr.aws/nginx/nginx:1.27
+  replicas: 1
+  containerPort: 8080
+  bucketSuffix: c3
+  costCenter: "0000-demo"
+  namespace: demo-team
