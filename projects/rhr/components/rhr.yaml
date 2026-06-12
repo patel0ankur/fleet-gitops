@@ -1,0 +1,13 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: rhr
+  description: rhr - StatelessServiceWithBucket
+  annotations:
+    backstage.io/source-location: url:https://github.com/patel0ankur/fleet-gitops/blob/main/projects/rhr/deployments/rhr.yaml
+    backstage.io/kubernetes-id: rhr
+spec:
+  type: service
+  lifecycle: production
+  owner: group:default/rhr
+  system: system:default/rhr

@@ -1,15 +1,16 @@
 apiVersion: backstage.io/v1alpha1
-kind: Component
+kind: Group
 metadata:
   name: soxl
-  description: soxl - StatelessServiceWithBucket (scaffolded by Fleet Backstage)
-  annotations:
-    backstage.io/kubernetes-id: soxl
-    backstage.io/source-location: url:https://github.com/patel0ankur/fleet-gitops/blob/main/projects/soxl/deployments/soxl.yaml
-  labels:
-    fleet.platform/kro-instance: soxl
 spec:
-  type: service
-  lifecycle: production
-  owner: soxl
-  system: soxl
+  type: team
+  children: []
+  members:
+    - guest
+---
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: soxl
+spec:
+  owner: group:default/soxl

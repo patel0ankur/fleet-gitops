@@ -1,7 +1,7 @@
 apiVersion: backstage.io/v1alpha1
 kind: Group
 metadata:
-  name: demo-team
+  name: rhr
 spec:
   type: team
   children: []
@@ -11,6 +11,6 @@ spec:
 apiVersion: backstage.io/v1alpha1
 kind: System
 metadata:
-  name: demo-team
+  name: rhr
 spec:
-  owner: group:default/demo-team
+  owner: group:default/rhr
