@@ -1,0 +1,117 @@
+# Argo auto-refresh — cut the post-merge reconcile wait without a webhook.
+#
+# WHY: Argo CD here is the AWS-managed EKS capability — its control plane runs
+# on AWS's side, so there is no in-cluster argocd-server / ingress / argocd-
+# secret to wire a GitHub webhook to. The reconcile is therefore poll-driven:
+#   - the fleet-workloads ApplicationSet re-scans git on its own interval to
+#     discover NEW projects/<team>/deployments dirs (the slow case: a brand-new
+#     agent waits for this poll BEFORE its App is even generated), and
+#   - each generated App then polls git (~180s) to sync.
+# Back-to-back that is up to ~6 min for a new project.
+#
+# WHAT: a CronJob that every minute stamps argocd.argoproj.io/refresh=hard onto
+# the fleet-workloads ApplicationSet and every fleet-workload-* Application,
+# forcing an immediate git re-scan + sync. Brings new agents live in <~1 min
+# instead of up to ~6. This is the durable, in-cluster equivalent of a webhook,
+# living entirely within what we control (the Application/ApplicationSet CRs).
+#
+# This dir (90-platform-addons) is hand-maintained gitops-only — render-gitops
+# does not write here, so it survives `make render-gitops`.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: argo-autorefresh
+  namespace: argocd
+  labels:
+    fleet.platform.acme/component: argo-autorefresh
+---
+# Least-privilege: only patch (annotate) the Argo CRs in the argocd namespace.
+# No get/list on secrets, no cluster-wide scope, no write to spec.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: argo-autorefresh
+  namespace: argocd
+  labels:
+    fleet.platform.acme/component: argo-autorefresh
+rules:
+  - apiGroups: [argoproj.io]
+    resources: [applications, applicationsets]
+    verbs: [get, list, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: argo-autorefresh
+  namespace: argocd
+  labels:
+    fleet.platform.acme/component: argo-autorefresh
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: argo-autorefresh
+subjects:
+  - kind: ServiceAccount
+    name: argo-autorefresh
+    namespace: argocd
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: argo-autorefresh
+  namespace: argocd
+  labels:
+    fleet.platform.acme/component: argo-autorefresh
+spec:
+  # Every minute. Kubernetes CronJob granularity is 1 min (the finest it allows).
+  schedule: "* * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      # Don't let a wedged run pile up; reclaim quickly.
+      activeDeadlineSeconds: 50
+      backoffLimit: 0
+      ttlSecondsAfterFinished: 120
+      template:
+        metadata:
+          labels:
+            fleet.platform.acme/component: argo-autorefresh
+        spec:
+          serviceAccountName: argo-autorefresh
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: refresh
+              # Official, rate-limit-free, multi-arch kubectl image.
+              image: registry.k8s.io/kubectl:v1.31.3
+              imagePullPolicy: IfNotPresent
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+              resources:
+                requests: { cpu: 10m, memory: 32Mi }
+                limits: { cpu: 100m, memory: 64Mi }
+              command: ["/bin/sh", "-c"]
+              args:
+                - |
+                  set -eu
+                  # 1) Re-scan git for NEW projects — generates fleet-workload-<team>
+                  #    Apps for freshly-merged projects/<team>/deployments dirs.
+                  kubectl -n argocd annotate applicationset fleet-workloads \
+                    argocd.argoproj.io/application-set-refresh=true --overwrite
+                  # 2) Force an immediate git re-check + sync on each workload App.
+                  #    refresh=hard is no-op-safe: it just re-evaluates desired vs
+                  #    live state (selfHeal then applies any drift).
+                  for app in $(kubectl -n argocd get applications -o name 2>/dev/null \
+                                 | grep '/fleet-workload-' || true); do
+                    kubectl -n argocd annotate "$app" \
+                      argocd.argoproj.io/refresh=hard --overwrite
+                  done
