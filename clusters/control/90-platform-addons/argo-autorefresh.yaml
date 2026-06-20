@@ -88,8 +88,11 @@ spec:
               type: RuntimeDefault
           containers:
             - name: refresh
-              # Official, rate-limit-free, multi-arch kubectl image.
-              image: registry.k8s.io/kubectl:v1.31.3
+              # alpine/k8s bundles a shell + kubectl. (registry.k8s.io/kubectl
+              # is distroless with NO shell — its entrypoint is kubectl itself —
+              # so the `sh -c` script below cannot run there: StartError
+              # "/bin/sh: no such file or directory".)
+              image: alpine/k8s:1.31.0
               imagePullPolicy: IfNotPresent
               securityContext:
                 allowPrivilegeEscalation: false
