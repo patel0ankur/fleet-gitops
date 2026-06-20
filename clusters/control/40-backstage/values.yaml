@@ -29,7 +29,9 @@ backstage:
     # the API regex ^[a-zA-Z0-9_.-]+$ (the raw STS ARN was being rejected
     # because of `:` and `/`). Uses STS principal UserId, slashes -> _,
     # colons -> _. See ADR 0010.
-    tag: "1.51.2-fleet14"
+    # fleet15 = currently the live image (reconciles git with the cluster,
+    # which had been bumped out-of-band). ECR digest sha256:563ddce1.
+    tag: "1.51.2-fleet15"
   extraVolumes:
     - name: backstage-secrets
       csi:
