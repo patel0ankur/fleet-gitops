@@ -10,16 +10,26 @@ Argo CD on the shared-services EKS cluster watches `clusters/control/` recursive
 clusters/
   control/                  ← fleet-bootstrap watches this directory
     00-projects/            Argo AppProjects (RBAC, allowed sources)
-    10-platform-addons/     Cluster-wide addons (ingress, observability)
-    20-fleet-crds/          Phase 2: Platform API CRDs
-    30-infratemplates/      Phase 2: kro ResourceGraphDefinitions (golden paths)
-    40-experience/          Phase 3: Backstage
-    50-ci/                  Phase 4: Argo Workflows
-    60-observability/       Phase 5: DevOps Agent wiring
-    70-finops/              Phase 6: cost reporting
+    20-fleet-crds/          Platform API CRDs (Project, Deployment, IncidentBinding)
+    30-infratemplates/      kro ResourceGraphDefinitions (golden paths)
+    40-backstage/           Backstage developer portal + scaffolder templates
+    60-incidents/           Incident pipeline RBAC (DevOps Agent)
+    80-applicationsets/     ApplicationSets that turn projects/* into running Apps
 
 projects/                   Per-tenant content (Backstage scaffolder writes here)
 ```
+
+## Golden paths
+
+kro ResourceGraphDefinitions in `30-infratemplates/`, each surfaced as a
+self-service Backstage scaffolder template:
+
+- **stateless-service-with-bucket** — Deployment + Service + S3 bucket + IAM
+  role + Pod Identity.
+- **agentic-service** — AI agent workload: Deployment + Service wired to
+  Amazon Bedrock for inference (via Pod Identity, no static keys), a DynamoDB
+  table for session/long-term memory, and an S3 artifact bucket. Requires the
+  ACK DynamoDB controller in the cluster.
 
 ## How to add a new platform component
 

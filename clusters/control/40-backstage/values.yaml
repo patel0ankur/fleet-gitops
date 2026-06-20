@@ -148,9 +148,15 @@ backstage:
         - group: 'kro.run'
           apiVersion: 'v1alpha1'
           plural: 'statelessservicewithbuckets'
+        - group: 'kro.run'
+          apiVersion: 'v1alpha1'
+          plural: 'agenticservices'
         - group: 's3.services.k8s.aws'
           apiVersion: 'v1alpha1'
           plural: 'buckets'
+        - group: 'dynamodb.services.k8s.aws'
+          apiVersion: 'v1alpha1'
+          plural: 'tables'
     # Phase 5: DevOps Agent plugin (genai-style chat tab on every workload).
     # The plugin lazily provisions the Fleet-default agentSpace via
     # CreateAgentSpace on first chat - operators do NOT need to pre-create it.

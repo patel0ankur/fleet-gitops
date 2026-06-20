@@ -1,0 +1,17 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: ${{ values.name }}
+  description: ${{ values.name }} - AgenticService (Bedrock + memory, scaffolded by Fleet Backstage)
+  annotations:
+    backstage.io/source-location: url:https://github.com/patel0ankur/fleet-gitops/blob/main/projects/${{ values.project }}/deployments/${{ values.name }}.yaml
+    # Tie this Component to its live K8s objects (Deployment/Service/Pods are
+    # labelled backstage.io/kubernetes-id=<name> by the kro RGD).
+    backstage.io/kubernetes-id: ${{ values.name }}
+  labels:
+    fleet.platform/kro-instance: ${{ values.name }}
+spec:
+  type: service
+  lifecycle: production
+  owner: group:default/${{ values.project }}
+  system: system:default/${{ values.project }}
