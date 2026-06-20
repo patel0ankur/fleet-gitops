@@ -5,7 +5,7 @@ metadata:
   namespace: devagent
 spec:
   name: devagent
-  image: devagent
+  image: 590443650088.dkr.ecr.us-east-1.amazonaws.com/fleet/hello-agent:latest
   modelId: us.anthropic.claude-opus-4-8
   replicas: 2
   containerPort: 8080
