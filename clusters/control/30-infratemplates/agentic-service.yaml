@@ -1,22 +1,20 @@
 # kro ResourceGraphDefinition: agentic service + Bedrock inference + memory.
 #
-# The Fleet golden path for AI agents. Models the article's "agent-native"
-# needs on AWS primitives we already run:
+# The Fleet golden path for AI agents. Maps the "Kubernetes for agentic apps"
+# blueprint onto AWS primitives Fleet already runs:
 #   - Inference     -> Amazon Bedrock (managed; no GPU node groups). The pod
 #                      assumes a per-workload IAM role via EKS Pod Identity and
 #                      calls Bedrock with zero static keys.
 #   - Long-term memory -> a DynamoDB table (ACK) for conversation/session state.
-#   - Artifacts     -> an S3 bucket (ACK), same as stateless-service-with-bucket.
+#   - Artifacts     -> an S3 bucket (ACK).
 #
-# fleet-control is templated at render time, mirroring
-# stateless-service-with-bucket.kro.run. Phase 4 moves the cluster reference to
-# an Environment CR.
+# fleet-control / us-east-1 / 590443650088 are templated at render time,
+# mirroring stateless-service-with-bucket/rgd.yaml. Phase 4 moves the cluster
+# reference to an Environment CR.
 #
-# PREREQUISITE: this RGD provisions a dynamodb.services.k8s.aws/v1alpha1 Table,
-# so the ACK DynamoDB controller MUST be installed in the cluster (the existing
-# golden path only needs the s3/iam/eks controllers). If DynamoDB ACK is not yet
-# deployed, the `memoryTable` resource stays unsynced and blocks the Deployment.
-# See ADR for the memory-backend decision.
+# PREREQUISITE: provisions a dynamodb.services.k8s.aws/v1alpha1 Table, so the
+# ACK DynamoDB controller must be enabled in the cluster (the stateless path
+# only needs s3/iam/eks). Verified present on fleet-control.
 apiVersion: kro.run/v1alpha1
 kind: ResourceGraphDefinition
 metadata:
@@ -35,8 +33,8 @@ spec:
       namespace: string
       # Bedrock inference profile ID the agent invokes. Defaults to the most
       # capable Claude model via its cross-region (US) inference profile. The
-      # IAM policy below grants invoke on any anthropic.* model + profile, so
-      # this can be retargeted without re-provisioning IAM.
+      # IAM policy grants invoke on any anthropic.* model + profile, so this can
+      # be retargeted without re-provisioning IAM.
       modelId: string | default="us.anthropic.claude-opus-4-8"
     status:
       bucketArn: ${artifactBucket.status.ackResourceMetadata.arn}
@@ -224,8 +222,9 @@ spec:
                   env:
                     # The agent reads these to wire up the Bedrock client and
                     # its memory/artifact backends. Credentials are injected by
-                    # Pod Identity, so no keys here.
-                    - name: BEDROCK_MODEL_ID
+                    # Pod Identity, so no keys here. MODEL_ID matches the
+                    # hello-agent reference app's env contract.
+                    - name: MODEL_ID
                       value: ${schema.spec.modelId}
                     - name: AWS_REGION
                       value: "us-east-1"
