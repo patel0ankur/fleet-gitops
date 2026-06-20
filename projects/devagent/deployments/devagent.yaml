@@ -1,0 +1,14 @@
+apiVersion: kro.run/v1alpha1
+kind: AgenticService
+metadata:
+  name: devagent
+  namespace: devagent
+spec:
+  name: devagent
+  image: devagent
+  modelId: us.anthropic.claude-opus-4-8
+  replicas: 2
+  containerPort: 8080
+  bucketSuffix: artifacts
+  costCenter: "devagent"
+  namespace: devagent
