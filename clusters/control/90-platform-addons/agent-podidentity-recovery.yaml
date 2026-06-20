@@ -1,0 +1,140 @@
+# Agent Pod Identity recovery janitor.
+#
+# WHY: EKS Pod Identity injects AWS credentials into a pod's spec at ADMISSION
+# (via a mutating webhook), and only if the workload's PodIdentityAssociation
+# has already propagated to the webhook. kro's readyWhen gate holds the
+# Deployment until ACK reports the PIA synced, but the CR's status conditions
+# (ACK.ResourceSynced / Ready / associationID) all flip True together and do
+# NOT expose "the Pod Identity webhook is now ready to inject" — so a pod can
+# still be admitted in the gap and start with NO credentials. boto3 then raises
+# NoCredentialsError ("Unable to locate credentials") on every Bedrock call.
+#
+# Because injection is admission-only, a cred-less pod CANNOT recover in place
+# (a container restart reuses the same spec). The agentic-service readiness
+# probe marks such a pod NotReady so it's pulled from its Service — with >=2
+# replicas a single-pod race is invisible to users. But if ALL replicas lose
+# the race, the Service has zero endpoints and nothing recreates them.
+#
+# WHAT: this CronJob is that missing actor. Every 2 min it finds pods labelled
+# fleet.platform.acme/workload-type=agentic-service that are Running but have
+# been Ready=False longer than a grace period, and deletes them. The owning
+# Deployment recreates them — and the new pods are admitted AFTER the PIA has
+# propagated, so the webhook injects creds. Zero-touch recovery for the
+# all-replicas race.
+#
+# Grace period guards against killing pods during a normal slow start (image
+# pull, app warmup) — only persistently-NotReady pods are recycled.
+#
+# Lives in 90-platform-addons (hand-maintained gitops-only; survives render).
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: agent-podidentity-recovery
+  namespace: kube-system
+  labels:
+    fleet.platform.acme/component: agent-podidentity-recovery
+---
+# Cluster-scoped: must list pods across all tenant namespaces and delete the
+# stuck ones. Least-privilege: list/get pods cluster-wide, delete pods only.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: agent-podidentity-recovery
+  labels:
+    fleet.platform.acme/component: agent-podidentity-recovery
+rules:
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [get, list, delete]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: agent-podidentity-recovery
+  labels:
+    fleet.platform.acme/component: agent-podidentity-recovery
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: agent-podidentity-recovery
+subjects:
+  - kind: ServiceAccount
+    name: agent-podidentity-recovery
+    namespace: kube-system
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: agent-podidentity-recovery
+  namespace: kube-system
+  labels:
+    fleet.platform.acme/component: agent-podidentity-recovery
+spec:
+  schedule: "*/2 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 100
+      backoffLimit: 0
+      ttlSecondsAfterFinished: 300
+      template:
+        metadata:
+          labels:
+            fleet.platform.acme/component: agent-podidentity-recovery
+        spec:
+          serviceAccountName: agent-podidentity-recovery
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: recover
+              # alpine/k8s bundles a shell + kubectl (the distroless
+              # registry.k8s.io/kubectl image has NO shell — its entrypoint is
+              # kubectl itself — so a `sh -c` script can't run there).
+              image: alpine/k8s:1.31.0
+              imagePullPolicy: IfNotPresent
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+              resources:
+                requests: { cpu: 10m, memory: 48Mi }
+                limits: { cpu: 100m, memory: 96Mi }
+              env:
+                # A pod must be NotReady at least this long before it's recycled,
+                # so normal slow starts (image pull, warmup) aren't killed.
+                - name: GRACE_SECONDS
+                  value: "120"
+              command: ["/bin/sh", "-c"]
+              args:
+                - |
+                  set -eu
+                  now=$(date -u +%s)
+                  # All agentic-service pods cluster-wide, as JSONL:
+                  #   <namespace> <name> <phase> <ready-status> <ready-lastTransition>
+                  kubectl get pods -A \
+                    -l fleet.platform.acme/workload-type=agentic-service \
+                    -o jsonpath='{range .items[*]}{.metadata.namespace}{" "}{.metadata.name}{" "}{.status.phase}{" "}{range .status.conditions[?(@.type=="Ready")]}{.status}{" "}{.lastTransitionTime}{end}{"\n"}{end}' \
+                  | while read -r ns name phase ready since; do
+                      # Only Running pods whose Ready condition is False.
+                      [ "$phase" = "Running" ] || continue
+                      [ "$ready" = "False" ] || continue
+                      [ -n "$since" ] || continue
+                      # How long has it been NotReady? (busybox date needs -D
+                      # to parse the ISO-8601 lastTransitionTime; GNU `-d "iso"`
+                      # is rejected by this image's date.)
+                      t=$(date -u -D "%Y-%m-%dT%H:%M:%SZ" -d "$since" +%s 2>/dev/null || echo 0)
+                      [ "$t" -gt 0 ] || continue
+                      age=$((now - t))
+                      if [ "$age" -ge "${GRACE_SECONDS}" ]; then
+                        echo "recycling $ns/$name (NotReady ${age}s >= ${GRACE_SECONDS}s — likely missing Pod Identity creds)"
+                        kubectl delete pod "$name" -n "$ns" --wait=false
+                      fi
+                    done
+                  echo "agent-podidentity-recovery sweep complete"
