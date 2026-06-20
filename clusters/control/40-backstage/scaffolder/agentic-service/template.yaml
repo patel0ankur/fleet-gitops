@@ -2,13 +2,14 @@ apiVersion: scaffolder.backstage.io/v1beta3
 kind: Template
 metadata:
   name: agentic-service
-  title: Agentic service (Bedrock + memory)
+  title: Agentic service (Bedrock AI agent)
   description: |
     Provisions an AI agent workload: a Kubernetes Deployment + Service wired to
     Amazon Bedrock for inference (via EKS Pod Identity — no static keys), a
-    DynamoDB table for long-term/session memory, and an S3 bucket for artifacts.
-    Opens a PR against fleet-gitops; once merged, Argo + kro reconcile within
-    ~3 minutes.
+    DynamoDB table for session/long-term memory, and an S3 bucket for artifacts.
+    Defaults to the hello-agent reference image (a FastAPI + Bedrock Converse
+    agent you can fork). Opens a PR against fleet-gitops; once merged, Argo + kro
+    reconcile within ~3 minutes.
   tags: [fleet, golden-path, aws, agent, bedrock, ai]
 spec:
   owner: group:platform
@@ -38,7 +39,8 @@ spec:
         image:
           title: Container image
           type: string
-          description: Your agent container. Must call Bedrock via the AWS SDK (creds come from Pod Identity).
+          default: 590443650088.dkr.ecr.us-east-1.amazonaws.com/fleet/hello-agent:latest
+          description: Your agent container. Defaults to the hello-agent reference app. Must call Bedrock via the AWS SDK (creds come from Pod Identity).
         modelId:
           title: Bedrock model / inference profile ID
           type: string
