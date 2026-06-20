@@ -13,6 +13,11 @@ serviceAccount:
   name: backstage
 
 backstage:
+  # 3 replicas for HA — survives a pod/node loss and spreads load. The backend
+  # is stateless (session state + catalog live in the shared Postgres), so
+  # replicas scale horizontally without coordination. Argo selfHeal keeps this
+  # enforced; do not `kubectl scale` (it gets reverted).
+  replicas: 3
   image:
     # Custom Fleet image (built from @backstage/create-app 1.51 via
     # backstage/Dockerfile.fleet). Unlike the upstream backstage/backstage
