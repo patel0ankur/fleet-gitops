@@ -1,0 +1,14 @@
+apiVersion: kro.run/v1alpha1
+kind: AgenticService
+metadata:
+  name: demo-agent
+  namespace: demo-agent
+spec:
+  name: demo-agent
+  image: 590443650088.dkr.ecr.us-east-1.amazonaws.com/fleet/hello-agent:latest
+  modelId: us.anthropic.claude-opus-4-8
+  replicas: 2
+  containerPort: 8080
+  bucketSuffix: artifacts
+  costCenter: "demo-agent"
+  namespace: demo-agent
